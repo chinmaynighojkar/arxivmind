@@ -14,7 +14,12 @@ PRIVATE_KEY_PATH = Path(os.getenv("JWT_PRIVATE_KEY_PATH", "keys/private.pem"))
 PUBLIC_KEY_PATH = Path(os.getenv("JWT_PUBLIC_KEY_PATH", "keys/public.pem"))
 EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 CLIENT_ID = os.getenv("OAUTH_CLIENT_ID", "arxivmind-client")
-CLIENT_SECRET = os.getenv("OAUTH_CLIENT_SECRET", "change-me")
+_raw_secret = os.getenv("OAUTH_CLIENT_SECRET", "")
+if not _raw_secret:
+    import warnings
+    warnings.warn("OAUTH_CLIENT_SECRET is not set — using insecure default. Set it in .env.", stacklevel=1)
+    _raw_secret = "change-me"
+CLIENT_SECRET = _raw_secret
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token", auto_error=False)

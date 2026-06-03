@@ -35,4 +35,4 @@ jobs:
           LLM_BACKEND: ollama
           QDRANT_URL: http://localhost:6333
           OAUTH_CLIENT_ID: test-client
-          OAUTH_CLIENT_SECRET: test-secret
+          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET || 'test-secret' }}
