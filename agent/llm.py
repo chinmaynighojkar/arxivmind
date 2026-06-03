@@ -79,7 +79,8 @@ class GroqClient(LLMClient):
                     "function": {"name": tc.function.name, "arguments": tc.function.arguments},
                 }
                 for tc in (choice.tool_calls or [])
-            ] or None,
+            ]
+            or None,
             "usage": {
                 "prompt_tokens": resp.usage.prompt_tokens,
                 "completion_tokens": resp.usage.completion_tokens,

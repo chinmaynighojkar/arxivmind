@@ -1,14 +1,15 @@
 """Basic API tests — auth, health, and query endpoint contract."""
 
 import os
+
 os.environ.setdefault("LLM_BACKEND", "ollama")
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("OAUTH_CLIENT_ID", "test-client")
 os.environ.setdefault("OAUTH_CLIENT_SECRET", "test-secret")
 
-import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, patch
+
+from fastapi.testclient import TestClient
 
 from api.main import app
 
@@ -55,9 +56,11 @@ def test_query_with_valid_token():
         "error": None,
     }
 
-    with patch("api.routes.query.loop.run", return_value=mock_result), \
-         patch("api.routes.query.get_qdrant", return_value=MagicMock()), \
-         patch("api.routes.query.get_llm", return_value=MagicMock()):
+    with (
+        patch("api.routes.query.loop.run", return_value=mock_result),
+        patch("api.routes.query.get_qdrant", return_value=MagicMock()),
+        patch("api.routes.query.get_llm", return_value=MagicMock()),
+    ):
         resp = client.post(
             "/query",
             json={"query": "What is attention?"},

@@ -154,7 +154,5 @@ def _summarise_topic(args: dict, qdrant: QdrantClient) -> str:
 
     lines = [f"Found {len(unique)} papers on '{args['topic']}':\n"]
     for r in unique:
-        lines.append(
-            f"[{r['paper_id']}] {r['title']} ({r['date'][:10]})\n{r['text'][:400]}..."
-        )
+        lines.append(f"[{r['paper_id']}] {r['title']} ({r['date'][:10]})\n{r['text'][:400]}...")
     return "\n\n".join(lines)

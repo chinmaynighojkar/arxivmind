@@ -1,12 +1,11 @@
 """Agentic loop: decompose query → route tools → aggregate → respond."""
 
-import json
 import time
 
 from qdrant_client import QdrantClient
 
 from agent.llm import LLMClient, get_llm_client
-from agent.tools import TOOL_DEFINITIONS, execute_tool
+from agent.tools import execute_tool
 
 MAX_ITERATIONS = 5
 TIMEOUT_SECONDS = 30
@@ -76,7 +75,9 @@ def run(
                     "error": None,
                 }
 
-            messages.append({"role": "assistant", "content": response["content"], "tool_calls": tool_calls})
+            messages.append(
+                {"role": "assistant", "content": response["content"], "tool_calls": tool_calls}
+            )
 
             for tc in tool_calls:
                 fn = tc["function"]
@@ -117,4 +118,5 @@ def run(
 def _extract_paper_ids(tool_result: str) -> list[str]:
     """Extract Arxiv paper IDs from tool result text."""
     import re
+
     return re.findall(r"\b\d{4}\.\d{4,5}(?:v\d+)?\b", tool_result)

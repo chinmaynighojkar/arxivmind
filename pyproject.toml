@@ -34,7 +34,11 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["E501"]
+ignore = [
+    "E501",   # line too long
+    "B008",   # Depends() in default args — standard FastAPI pattern
+    "E402",   # module import not at top — needed for sys.path scripts
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

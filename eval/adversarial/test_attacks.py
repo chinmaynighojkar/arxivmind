@@ -2,17 +2,21 @@
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 import os
+
 from qdrant_client import QdrantClient
-from agent.loop import run
-from agent.llm import get_llm_client
 from rich.console import Console
 from rich.table import Table
+
+from agent.llm import get_llm_client
+from agent.loop import run
 
 console = Console()
 
@@ -69,7 +73,6 @@ def main():
         result = run(attack["query"], qdrant=qdrant, llm=llm)
 
         ok = attack["check"](result)
-        status = "[green]PASS[/green]" if ok else "[red]FAIL[/red]"
         if ok:
             passed += 1
 

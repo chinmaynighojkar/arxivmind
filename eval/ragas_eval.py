@@ -16,15 +16,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from dotenv import load_dotenv
+
 load_dotenv()
+
+import os
 
 import httpx
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from rich.console import Console
-from rich.table import Table
 from rich.progress import track
-import os
+from rich.table import Table
+from sentence_transformers import SentenceTransformer
 
 console = Console()
 
@@ -79,14 +81,16 @@ def main():
     results = []
     for item in track(golden, description="Running queries..."):
         answer, sources, iterations, latency_ms = query_rag(item["question"], token)
-        results.append({
-            "question": item["question"],
-            "reference": item["reference"],
-            "answer": answer,
-            "sources": sources,
-            "iterations": iterations,
-            "latency_ms": latency_ms,
-        })
+        results.append(
+            {
+                "question": item["question"],
+                "reference": item["reference"],
+                "answer": answer,
+                "sources": sources,
+                "iterations": iterations,
+                "latency_ms": latency_ms,
+            }
+        )
 
     console.print("\n[yellow]Computing metrics...[/yellow]")
 
@@ -99,9 +103,7 @@ def main():
 
     retrieval_coverage = sum(1 for r in results if len(r["sources"]) > 0) / len(results)
     citation_rate = sum(1 for r in results if has_citation(r["answer"])) / len(results)
-    answer_completeness = sum(
-        1 for r in results if len(r["answer"].split()) >= 50
-    ) / len(results)
+    answer_completeness = sum(1 for r in results if len(r["answer"].split()) >= 50) / len(results)
     avg_similarity = float(np.mean(similarities))
     avg_latency = sum(r["latency_ms"] for r in results) / len(results)
     avg_sources = sum(len(r["sources"]) for r in results) / len(results)
@@ -130,18 +132,28 @@ def main():
     table.add_column("Description")
 
     def score_color(v: float) -> str:
-        if v >= 0.7: return f"[green]{v:.3f}[/green]"
-        if v >= 0.5: return f"[yellow]{v:.3f}[/yellow]"
+        if v >= 0.7:
+            return f"[green]{v:.3f}[/green]"
+        if v >= 0.5:
+            return f"[yellow]{v:.3f}[/yellow]"
         return f"[red]{v:.3f}[/red]"
 
-    table.add_row("Answer Similarity", score_color(avg_similarity),
-                  "Cosine sim vs reference answer (sentence-transformers)")
-    table.add_row("Retrieval Coverage", score_color(retrieval_coverage),
-                  "% queries that returned >=1 source paper")
-    table.add_row("Citation Rate", score_color(citation_rate),
-                  "% answers that cite a paper ID")
-    table.add_row("Answer Completeness", score_color(answer_completeness),
-                  "% answers >=50 words (non-trivial response)")
+    table.add_row(
+        "Answer Similarity",
+        score_color(avg_similarity),
+        "Cosine sim vs reference answer (sentence-transformers)",
+    )
+    table.add_row(
+        "Retrieval Coverage",
+        score_color(retrieval_coverage),
+        "% queries that returned >=1 source paper",
+    )
+    table.add_row("Citation Rate", score_color(citation_rate), "% answers that cite a paper ID")
+    table.add_row(
+        "Answer Completeness",
+        score_color(answer_completeness),
+        "% answers >=50 words (non-trivial response)",
+    )
 
     console.print(table)
 
@@ -155,23 +167,24 @@ def main():
     detail.add_column("Cited", width=5)
     detail.add_column("Words", width=6)
 
-    for i, (r, sim) in enumerate(zip(results, similarities)):
+    for i, (r, sim) in enumerate(zip(results, similarities, strict=False)):
         words = len(r["answer"].split())
         detail.add_row(
             str(i + 1),
             r["question"][:43] + ".." if len(r["question"]) > 45 else r["question"],
             f"{sim:.2f}",
             str(len(r["sources"])),
-            "✓" if has_citation(r["answer"]) else "✗",
             "Y" if has_citation(r["answer"]) else "N",
             str(words),
         )
     console.print(detail)
 
     # ── Summary stats ──────────────────────────────────────────────────────
-    console.print(f"\nAvg latency: {avg_latency/1000:.1f}s | "
-                  f"Avg sources per query: {avg_sources:.1f} | "
-                  f"Sample: {len(golden)} questions")
+    console.print(
+        f"\nAvg latency: {avg_latency / 1000:.1f}s | "
+        f"Avg sources per query: {avg_sources:.1f} | "
+        f"Sample: {len(golden)} questions"
+    )
 
     console.print(f"\nScores saved to {out_path}")
 

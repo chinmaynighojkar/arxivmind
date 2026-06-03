@@ -18,8 +18,8 @@ def ready():
     try:
         client = get_qdrant()
         client.get_collections()
-    except Exception:
-        raise HTTPException(status_code=503, detail="Qdrant not reachable")
+    except Exception as e:
+        raise HTTPException(status_code=503, detail="Qdrant not reachable") from e
     return {"status": "ready", "qdrant": "ok"}
 
 

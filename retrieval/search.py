@@ -3,7 +3,7 @@
 import os
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue, Range
+from qdrant_client.models import FieldCondition, Filter, MatchValue, Range
 from sentence_transformers import SentenceTransformer
 
 COLLECTION = os.getenv("QDRANT_COLLECTION", "arxivmind")
@@ -41,10 +41,7 @@ def hybrid_search(
         with_payload=True,
     )
 
-    return [
-        {**r.payload, "_score": r.score, "_id": str(r.id)}
-        for r in results.points
-    ]
+    return [{**r.payload, "_score": r.score, "_id": str(r.id)} for r in results.points]
 
 
 def _build_filter(filters: dict) -> Filter | None:
@@ -54,9 +51,7 @@ def _build_filter(filters: dict) -> Filter | None:
             FieldCondition(key="category", match=MatchValue(value=filters["category"]))
         )
     if "date_from" in filters:
-        conditions.append(
-            FieldCondition(key="date", range=Range(gte=filters["date_from"]))
-        )
+        conditions.append(FieldCondition(key="date", range=Range(gte=filters["date_from"])))
     if not conditions:
         return None
     return Filter(must=conditions)

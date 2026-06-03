@@ -1,8 +1,5 @@
 """Section-aware chunker. Never mixes content from different sections."""
 
-import re
-
-
 MAX_CHUNK_TOKENS = 400
 OVERLAP_TOKENS = 50
 

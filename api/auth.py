@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -58,7 +58,7 @@ def verify_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid token: {e}",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 def get_current_client(token: str = Depends(oauth2_scheme)) -> dict:
@@ -79,4 +79,5 @@ def require_scope(scope: str):
                 detail=f"Scope '{scope}' required",
             )
         return client
+
     return checker

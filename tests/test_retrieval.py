@@ -18,7 +18,9 @@ def test_chunk_text_short():
     assert len(chunks) == 0
 
     # A longer short text should produce exactly one chunk
-    chunks = _chunk_text("this is a slightly longer piece of text for testing", max_tokens=100, overlap=10)
+    chunks = _chunk_text(
+        "this is a slightly longer piece of text for testing", max_tokens=100, overlap=10
+    )
     assert len(chunks) == 1
 
 
@@ -40,8 +42,7 @@ def test_chunk_sections_metadata():
 
 def test_rerank_reduces_candidates():
     candidates = [
-        {"text": f"This paper discusses topic {i}", "paper_id": f"2312.0000{i}"}
-        for i in range(10)
+        {"text": f"This paper discusses topic {i}", "paper_id": f"2312.0000{i}"} for i in range(10)
     ]
     results = rerank("transformer attention mechanism", candidates, top_n=3)
     assert len(results) == 3

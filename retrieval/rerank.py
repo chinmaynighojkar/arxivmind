@@ -27,7 +27,7 @@ def rerank(query: str, candidates: list[dict], top_n: int = TOP_N) -> list[dict]
     scores = reranker.predict(pairs)
 
     ranked = sorted(
-        zip(candidates, scores),
+        zip(candidates, scores, strict=False),
         key=lambda x: x[1],
         reverse=True,
     )

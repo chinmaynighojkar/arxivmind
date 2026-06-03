@@ -7,9 +7,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 import os
+
 from qdrant_client import QdrantClient
 from rich.console import Console
 from rich.progress import track
@@ -25,7 +27,9 @@ console = Console()
 def main():
     parser = argparse.ArgumentParser(description="Ingest Arxiv papers into Qdrant")
     parser.add_argument("--limit", type=int, default=500, help="Max papers to fetch")
-    parser.add_argument("--skip-download", action="store_true", help="Skip PDF download, use abstracts only")
+    parser.add_argument(
+        "--skip-download", action="store_true", help="Skip PDF download, use abstracts only"
+    )
     args = parser.parse_args()
 
     qdrant = QdrantClient(

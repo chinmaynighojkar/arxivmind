@@ -48,7 +48,7 @@ def fetch_papers(
                 papers.extend(batch)
                 print(f"  Got {len(batch)} papers from {category}")
                 break
-            except Exception as e:
+            except Exception:
                 retries += 1
                 wait = 15 * retries
                 print(f"  Rate limited on {category}, waiting {wait}s (attempt {retries}/5)...")

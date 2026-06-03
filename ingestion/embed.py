@@ -54,7 +54,7 @@ def upsert_chunks(client: QdrantClient, chunks: list[dict]) -> int:
         texts = [c["text"] for c in batch]
         dense_vecs = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
 
-        for chunk, dense_vec in zip(batch, dense_vecs):
+        for chunk, dense_vec in zip(batch, dense_vecs, strict=False):
             points.append(
                 PointStruct(
                     id=str(uuid.uuid4()),

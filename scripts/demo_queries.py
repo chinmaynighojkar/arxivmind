@@ -1,9 +1,12 @@
 """Demo: run 3 live queries against the ArxivMind API."""
+
 import httpx
 
 BASE = "http://localhost:8000"
 
-token = httpx.post(BASE + "/token", data={"username": "arxivmind-client", "password": "change-me"}).json()["access_token"]
+token = httpx.post(
+    BASE + "/token", data={"username": "arxivmind-client", "password": "change-me"}
+).json()["access_token"]
 headers = {"Authorization": f"Bearer {token}"}
 
 queries = [
