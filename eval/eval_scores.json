@@ -1,0 +1,13 @@
+{
+  "sample_size": 10,
+  "model": "qwen2.5:7b (local)",
+  "corpus_size": 400,
+  "metrics": {
+    "answer_similarity": 0.619,
+    "retrieval_coverage": 1.0,
+    "citation_rate": 1.0,
+    "answer_completeness": 1.0
+  },
+  "avg_latency_seconds": 49.5,
+  "avg_sources_per_query": 3.7
+}

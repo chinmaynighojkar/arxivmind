@@ -1,0 +1,82 @@
+[
+  {
+    "question": "What is the core idea behind the Transformer architecture?",
+    "reference": "The Transformer uses self-attention mechanisms instead of recurrence, allowing parallel processing of sequences and better capturing long-range dependencies."
+  },
+  {
+    "question": "What problem does RAG (Retrieval-Augmented Generation) solve?",
+    "reference": "RAG addresses hallucination in LLMs by grounding generation in retrieved documents, combining parametric knowledge with non-parametric retrieval."
+  },
+  {
+    "question": "What is the difference between BERT and GPT architectures?",
+    "reference": "BERT uses bidirectional attention (encoder-only) for understanding tasks, while GPT uses causal/unidirectional attention (decoder-only) for generation tasks."
+  },
+  {
+    "question": "What is LoRA and why is it useful for fine-tuning?",
+    "reference": "LoRA (Low-Rank Adaptation) reduces fine-tuning parameters by decomposing weight update matrices into low-rank products, enabling efficient adaptation with far fewer trainable parameters."
+  },
+  {
+    "question": "How does RLHF work in LLM training?",
+    "reference": "RLHF trains a reward model on human preference data, then uses PPO or similar RL algorithms to fine-tune the LLM to maximise the reward model's score."
+  },
+  {
+    "question": "What are the main approaches to reducing hallucination in LLMs?",
+    "reference": "Approaches include RAG for grounding, RLHF with factuality rewards, chain-of-thought prompting, self-consistency sampling, and uncertainty quantification."
+  },
+  {
+    "question": "What is the scaling law in deep learning?",
+    "reference": "Scaling laws describe predictable power-law relationships between model performance and compute, dataset size, and parameter count, as documented by Kaplan et al."
+  },
+  {
+    "question": "What is knowledge distillation?",
+    "reference": "Knowledge distillation trains a smaller student model to mimic the output distribution (soft targets) of a larger teacher model, compressing performance into a smaller footprint."
+  },
+  {
+    "question": "What is the purpose of positional encoding in Transformers?",
+    "reference": "Positional encoding injects sequence order information into the attention mechanism, which is otherwise permutation-invariant."
+  },
+  {
+    "question": "What are diffusion models and how do they generate images?",
+    "reference": "Diffusion models learn to reverse a noise addition process, iteratively denoising Gaussian noise into structured data like images by training on the reverse diffusion trajectory."
+  },
+  {
+    "question": "What is mixture of experts (MoE) in LLMs?",
+    "reference": "MoE routes each token to a subset of specialised expert feed-forward layers, allowing model capacity to scale without proportional compute increase per token."
+  },
+  {
+    "question": "What is chain-of-thought prompting?",
+    "reference": "Chain-of-thought prompting elicits step-by-step reasoning from LLMs by including reasoning examples in the prompt, improving performance on complex reasoning tasks."
+  },
+  {
+    "question": "How does contrastive learning work in self-supervised settings?",
+    "reference": "Contrastive learning trains encoders to produce similar representations for augmented views of the same sample and dissimilar representations for different samples."
+  },
+  {
+    "question": "What is the vanishing gradient problem and how is it addressed?",
+    "reference": "Vanishing gradients occur when backpropagated gradients shrink exponentially in deep networks. Solutions include residual connections, normalisation layers, and better initialisations."
+  },
+  {
+    "question": "What is flash attention?",
+    "reference": "FlashAttention is an IO-aware exact attention algorithm that tiles computation to reduce HBM reads/writes, achieving faster and more memory-efficient attention without approximation."
+  },
+  {
+    "question": "What are graph neural networks used for?",
+    "reference": "GNNs learn representations of graph-structured data via message passing, used for molecular property prediction, social network analysis, recommendation systems, and more."
+  },
+  {
+    "question": "What is the role of the KV cache in LLM inference?",
+    "reference": "The KV cache stores computed key and value projections from prior tokens, avoiding recomputation during autoregressive generation and significantly reducing inference latency."
+  },
+  {
+    "question": "What is quantisation in the context of neural networks?",
+    "reference": "Quantisation reduces model size and inference latency by representing weights and activations in lower precision formats (e.g., INT8, INT4) with minimal accuracy loss."
+  },
+  {
+    "question": "What is the difference between supervised and self-supervised learning?",
+    "reference": "Supervised learning requires labelled data; self-supervised learning generates supervisory signals from the data itself (e.g., masked token prediction, contrastive objectives)."
+  },
+  {
+    "question": "What is speculative decoding in LLM inference?",
+    "reference": "Speculative decoding uses a smaller draft model to propose token sequences that a larger verifier model accepts or rejects in parallel, reducing latency while maintaining output quality."
+  }
+]

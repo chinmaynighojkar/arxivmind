@@ -1,0 +1,7 @@
+services:
+  app:
+    environment:
+      LLM_BACKEND: "groq"
+      QDRANT_URL: "${QDRANT_URL}"
+      QDRANT_API_KEY: "${QDRANT_API_KEY}"
+      GROQ_API_KEY: "${GROQ_API_KEY}"

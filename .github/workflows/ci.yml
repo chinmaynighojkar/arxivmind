@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv pip install --system -e ".[dev]" 2>/dev/null || pip install fastapi uvicorn qdrant-client sentence-transformers pymupdf python-jose passlib slowapi structlog httpx openai arxiv python-dotenv python-multipart rich pytest pytest-asyncio
+
+      - name: Lint
+        run: |
+          pip install ruff
+          ruff check .
+          ruff format --check .
+
+      - name: Test
+        run: pytest tests/ -v --tb=short
+        env:
+          LLM_BACKEND: ollama
+          QDRANT_URL: http://localhost:6333
+          OAUTH_CLIENT_ID: test-client
+          OAUTH_CLIENT_SECRET: test-secret
