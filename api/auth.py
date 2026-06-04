@@ -17,7 +17,10 @@ CLIENT_ID = os.getenv("OAUTH_CLIENT_ID", "arxivmind-client")
 _raw_secret = os.getenv("OAUTH_CLIENT_SECRET", "")
 if not _raw_secret:
     import warnings
-    warnings.warn("OAUTH_CLIENT_SECRET is not set — using insecure default. Set it in .env.", stacklevel=1)
+
+    warnings.warn(
+        "OAUTH_CLIENT_SECRET is not set — using insecure default. Set it in .env.", stacklevel=1
+    )
     _raw_secret = "change-me"
 CLIENT_SECRET = _raw_secret
 
