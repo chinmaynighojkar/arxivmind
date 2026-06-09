@@ -4,6 +4,9 @@ import time
 from pathlib import Path
 
 import arxiv
+import structlog
+
+logger = structlog.get_logger()
 
 CATEGORIES = ["cs.LG", "cs.AI", "stat.ML", "cs.CL"]
 PDF_DIR = Path(__file__).parent.parent / "data" / "pdfs"
@@ -22,7 +25,7 @@ def fetch_papers(
     per_category = min(max_results // len(categories), 100)  # stay within one page
 
     for category in categories:
-        print(f"  Fetching {per_category} papers from {category}...")
+        logger.info("fetching_category", category=category, count=per_category)
         search = arxiv.Search(
             query=f"cat:{category}",
             max_results=per_category,
@@ -46,12 +49,12 @@ def fetch_papers(
                         }
                     )
                 papers.extend(batch)
-                print(f"  Got {len(batch)} papers from {category}")
+                logger.info("fetched_category", category=category, count=len(batch))
                 break
             except Exception:
                 retries += 1
                 wait = 15 * retries
-                print(f"  Rate limited on {category}, waiting {wait}s (attempt {retries}/5)...")
+                logger.warning("arxiv_rate_limited", category=category, wait_seconds=wait, attempt=retries)
                 time.sleep(wait)
 
         time.sleep(10)  # respectful delay between categories
@@ -72,5 +75,5 @@ def download_pdf(paper: dict) -> Path | None:
         result.download_pdf(dirpath=str(PDF_DIR), filename=f"{paper_id}.pdf")
         return pdf_path
     except Exception as e:
-        print(f"[fetch] Failed to download {paper['paper_id']}: {e}")
+        logger.error("pdf_download_failed", paper_id=paper["paper_id"], error=str(e))
         return None

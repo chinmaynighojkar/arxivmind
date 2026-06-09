@@ -3,7 +3,7 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agent import loop
 from api.auth import require_scope
@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 class QueryRequest(BaseModel):
-    query: str
+    query: str = Field(min_length=1, max_length=1000)
     category: str | None = None
     date_from: str | None = None
 

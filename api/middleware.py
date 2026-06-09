@@ -11,6 +11,7 @@ from slowapi.util import get_remote_address
 logger = structlog.get_logger()
 limiter = Limiter(key_func=get_remote_address)
 
+# In-memory counters — reset on every process restart, not persisted across deploys.
 _request_count = 0
 _error_count = 0
 _total_latency_ms = 0
