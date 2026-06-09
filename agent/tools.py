@@ -127,7 +127,9 @@ def _get_paper(args: dict, qdrant: QdrantClient) -> str:
 
     results = qdrant.scroll(
         collection_name=COLLECTION,
-        scroll_filter=Filter(must=[FieldCondition(key="paper_id", match=MatchValue(value=paper_id))]),
+        scroll_filter=Filter(
+            must=[FieldCondition(key="paper_id", match=MatchValue(value=paper_id))]
+        ),
         limit=1,
         with_payload=True,
     )

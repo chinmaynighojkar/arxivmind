@@ -54,7 +54,9 @@ def fetch_papers(
             except Exception:
                 retries += 1
                 wait = 15 * retries
-                logger.warning("arxiv_rate_limited", category=category, wait_seconds=wait, attempt=retries)
+                logger.warning(
+                    "arxiv_rate_limited", category=category, wait_seconds=wait, attempt=retries
+                )
                 time.sleep(wait)
 
         time.sleep(10)  # respectful delay between categories

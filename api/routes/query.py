@@ -36,8 +36,14 @@ async def query(
     qdrant=Depends(get_qdrant),
     llm=Depends(get_llm),
 ):
-    filters = {k: v for k, v in {"category": req.category, "date_from": req.date_from}.items() if v is not None}
-    result = await asyncio.to_thread(loop.run, req.query, qdrant=qdrant, llm=llm, filters=filters or None)
+    filters = {
+        k: v
+        for k, v in {"category": req.category, "date_from": req.date_from}.items()
+        if v is not None
+    }
+    result = await asyncio.to_thread(
+        loop.run, req.query, qdrant=qdrant, llm=llm, filters=filters or None
+    )
     if result["error"]:
         raise HTTPException(status_code=500, detail="Query failed. Please try again.")
     return QueryResponse(**result)
