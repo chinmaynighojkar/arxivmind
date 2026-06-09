@@ -141,6 +141,12 @@ After completing the initial build I did a systematic review of the codebase bef
 
 **Error handling** — agent loop exceptions were returned as HTTP 200 with `error: str(e)`, leaking internal details. Exceptions are now logged via structlog with `exc_info=True`; the API returns HTTP 500 with a generic message.
 
+**Input validation** — `QueryRequest.query` had no length constraints, accepting empty strings or arbitrarily large payloads. Added `min_length=1` / `max_length=1000` via Pydantic `Field` so invalid inputs are rejected at the boundary before reaching the agent loop.
+
+**Logging consistency** — the ingestion pipeline (`fetch.py`) used `print()` while every other module used structlog. Replaced all print calls with structured log events so ingestion progress appears in the same JSON log stream as the API.
+
+**Metrics clarity** — the in-memory request counters in `middleware.py` were undocumented; it wasn't obvious they reset on every process restart and are not persisted across deploys. Added a comment to make the scope explicit.
+
 ## Running locally vs deployed
 
 | Setting | Local | Deployed |
