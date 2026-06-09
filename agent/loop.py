@@ -1,11 +1,15 @@
 """Agentic loop: decompose query → route tools → aggregate → respond."""
 
+import re
 import time
 
+import structlog
 from qdrant_client import QdrantClient
 
 from agent.llm import LLMClient, get_llm_client
 from agent.tools import execute_tool
+
+logger = structlog.get_logger()
 
 MAX_ITERATIONS = 5
 TIMEOUT_SECONDS = 30
@@ -29,6 +33,7 @@ def run(
     query: str,
     qdrant: QdrantClient,
     llm: LLMClient | None = None,
+    filters: dict | None = None,
 ) -> dict:
     """
     Run the agentic loop for a user query.
@@ -47,7 +52,10 @@ def run(
     start = time.monotonic()
 
     # Always run an initial search before the LLM loop — guarantees retrieval happens
-    initial_result = execute_tool("search_papers", {"query": query}, qdrant)
+    initial_args: dict = {"query": query}
+    if filters:
+        initial_args.update(filters)
+    initial_result = execute_tool("search_papers", initial_args, qdrant)
     sources.extend(_extract_paper_ids(initial_result))
     # Inject results as context into the user message so the model always has papers to cite
     messages[-1]["content"] = (
@@ -106,17 +114,15 @@ def run(
 
     except Exception as e:
         latency_ms = int((time.monotonic() - start) * 1000)
+        logger.error("agent_loop_error", error=str(e), exc_info=True)
         return {
             "answer": "",
             "sources": [],
             "iterations": iterations,
             "latency_ms": latency_ms,
-            "error": str(e),
+            "error": "An error occurred while processing your query.",
         }
 
 
 def _extract_paper_ids(tool_result: str) -> list[str]:
-    """Extract Arxiv paper IDs from tool result text."""
-    import re
-
     return re.findall(r"\b\d{4}\.\d{4,5}(?:v\d+)?\b", tool_result)

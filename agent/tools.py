@@ -2,11 +2,15 @@
 
 import json
 import os
+import re
 
 from qdrant_client import QdrantClient
+from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 from retrieval.rerank import rerank
 from retrieval.search import hybrid_search
+
+_ARXIV_ID_RE = re.compile(r"^\d{4}\.\d{4,5}(v\d+)?$")
 
 COLLECTION = os.getenv("QDRANT_COLLECTION", "arxivmind")
 
@@ -117,15 +121,19 @@ def _search_papers(args: dict, qdrant: QdrantClient) -> str:
 
 
 def _get_paper(args: dict, qdrant: QdrantClient) -> str:
+    paper_id = args.get("paper_id", "")
+    if not _ARXIV_ID_RE.match(paper_id):
+        return f"Error: '{paper_id}' is not a valid Arxiv ID (expected format: YYMM.NNNNN)."
+
     results = qdrant.scroll(
         collection_name=COLLECTION,
-        scroll_filter={"must": [{"key": "paper_id", "match": {"value": args["paper_id"]}}]},
+        scroll_filter=Filter(must=[FieldCondition(key="paper_id", match=MatchValue(value=paper_id))]),
         limit=1,
         with_payload=True,
     )
     points = results[0]
     if not points:
-        return f"Paper {args['paper_id']} not found in the index."
+        return f"Paper {paper_id} not found in the index."
 
     p = points[0].payload
     return (

@@ -1,5 +1,7 @@
 """FastAPI application entry point."""
 
+import hmac
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -37,7 +39,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 
 @app.post("/token", tags=["auth"])
 async def token(form: OAuth2PasswordRequestForm = Depends()):
-    if form.username != CLIENT_ID or form.password != CLIENT_SECRET:
+    if form.username != CLIENT_ID or not hmac.compare_digest(form.password, CLIENT_SECRET):
         raise HTTPException(status_code=401, detail="Invalid client credentials")
     scopes = form.scopes if form.scopes else ["read:query"]
     access_token = create_access_token(form.username, scopes)

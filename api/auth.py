@@ -4,10 +4,13 @@ import os
 import time
 from pathlib import Path
 
+import structlog
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+
+logger = structlog.get_logger()
 
 ALGORITHM = os.getenv("JWT_ALGORITHM", "RS256")
 PRIVATE_KEY_PATH = Path(os.getenv("JWT_PRIVATE_KEY_PATH", "keys/private.pem"))
@@ -34,13 +37,18 @@ _public_key: str | None = None
 def _load_keys() -> tuple[str, str]:
     global _private_key, _public_key
     if _private_key is None:
-        if PRIVATE_KEY_PATH.exists():
+        if ALGORITHM == "RS256":
+            if not PRIVATE_KEY_PATH.exists():
+                raise RuntimeError(
+                    f"JWT_ALGORITHM=RS256 but key file not found: {PRIVATE_KEY_PATH}. "
+                    "Generate keys with: openssl genrsa -out keys/private.pem 2048 && "
+                    "openssl rsa -in keys/private.pem -pubout -out keys/public.pem. "
+                    "For local dev without keys, set JWT_ALGORITHM=HS256 in .env."
+                )
             _private_key = PRIVATE_KEY_PATH.read_text()
             _public_key = PUBLIC_KEY_PATH.read_text()
         else:
-            # Fallback to HS256 for dev without key files
-            global ALGORITHM
-            ALGORITHM = "HS256"
+            # HS256 dev mode — opted in explicitly via JWT_ALGORITHM=HS256
             _private_key = CLIENT_SECRET
             _public_key = CLIENT_SECRET
     return _private_key, _public_key
@@ -62,9 +70,10 @@ def verify_token(token: str) -> dict:
     try:
         return jwt.decode(token, public_key, algorithms=[ALGORITHM])
     except JWTError as e:
+        logger.warning("jwt_verification_failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token: {e}",
+            detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
 

@@ -122,6 +122,25 @@ arxivmind/
 
 Five attack categories tested (prompt injection, role confusion, data exfiltration, cost amplification, context poisoning) with documented mitigations. See [SECURITY.md](SECURITY.md).
 
+## Security & reliability hardening
+
+After completing the initial build I did a systematic review of the codebase before treating it as portfolio-ready. Several issues warranted fixing:
+
+**Concurrency** — the agentic loop (`httpx` calls to Ollama, sentence-transformer encoding, cross-encoder re-ranking) was running synchronously inside an async FastAPI handler, blocking the event loop for the full query duration (~30s worst case). Wrapped in `asyncio.to_thread` so concurrent requests are handled properly.
+
+**Rate limiting** — `slowapi` was wired up at the app level (limiter attached, exception handler registered) but the `@limiter.limit()` decorator was never applied to the `/query` route, so the endpoint was completely unthrottled. Applied 20 req/min per IP.
+
+**Auth hardening** — three issues:
+- The RS256→HS256 fallback when key files were missing was silent; a misconfigured production deploy would silently accept tokens signed with a known string. Changed to raise `RuntimeError` at startup with instructions. Dev mode now requires explicitly setting `JWT_ALGORITHM=HS256`.
+- Client secret comparison used `!=` (vulnerable to timing oracle attacks). Switched to `hmac.compare_digest`.
+- JWT verification errors returned the raw `JWTError` string to the caller (information disclosure). Now logged server-side; callers receive a generic `"Invalid token"`.
+
+**API contract correctness** — `category` and `date_from` fields were accepted in `QueryRequest` but never propagated to the retrieval pipeline. Threaded them through `loop.run` → `execute_tool` so filters actually work.
+
+**LLM output trust boundary** — the `get_paper` tool passed the LLM-generated `paper_id` argument directly into a Qdrant scroll query without validation. Added an Arxiv ID pattern check before it reaches the database. Also replaced the raw dict filter syntax with proper Qdrant `Filter`/`FieldCondition` model classes for consistency.
+
+**Error handling** — agent loop exceptions were returned as HTTP 200 with `error: str(e)`, leaking internal details. Exceptions are now logged via structlog with `exc_info=True`; the API returns HTTP 500 with a generic message.
+
 ## Running locally vs deployed
 
 | Setting | Local | Deployed |

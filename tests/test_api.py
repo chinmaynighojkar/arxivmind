@@ -6,6 +6,7 @@ os.environ.setdefault("LLM_BACKEND", "ollama")
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("OAUTH_CLIENT_ID", "test-client")
 os.environ.setdefault("OAUTH_CLIENT_SECRET", "test-secret")
+os.environ.setdefault("JWT_ALGORITHM", "HS256")  # no key files in test env
 
 from unittest.mock import MagicMock, patch
 
