@@ -1,6 +1,6 @@
 # ArxivMind
 
-A production-grade RAG system that lets you query a database of Arxiv ML research papers through a natural language API. Built with FastAPI, Qdrant, and a local LLM via Ollama — zero API cost during development.
+A production-grade RAG system that lets you query a database of Arxiv ML research papers through a natural language API. Built with FastAPI, Qdrant, and a local LLM via Ollama.
 
 ## What it does
 
@@ -27,10 +27,10 @@ Client
               └── LLM synthesis (Ollama local | Groq deployed)
 
 Ingestion pipeline (one-shot):
-  Arxiv API → PyMuPDF → Section-aware chunker → sentence-transformers → Qdrant
+  Arxiv API -> PyMuPDF -> Section-aware chunker -> sentence-transformers -> Qdrant
 ```
 
-**LLM backend is swappable via env var** — `LLM_BACKEND=ollama` for local dev, `LLM_BACKEND=groq` for production. The agent loop is identical for both.
+The LLM backend is configured via `LLM_BACKEND`: set to `ollama` for local development, `groq` for production. The agent loop is identical for both.
 
 ## Evaluation results
 
@@ -124,33 +124,22 @@ Five attack categories tested (prompt injection, role confusion, data exfiltrati
 
 ## Security & reliability hardening
 
-After completing the initial build I did a systematic review of the codebase before treating it as portfolio-ready. Several issues warranted fixing:
+A post-build review of the codebase identified and resolved several correctness and security issues across the API, agent layer, and ingestion pipeline.
 
-**Concurrency** — the agentic loop (`httpx` calls to Ollama, sentence-transformer encoding, cross-encoder re-ranking) was running synchronously inside an async FastAPI handler, blocking the event loop for the full query duration (~30s worst case). Wrapped in `asyncio.to_thread` so concurrent requests are handled properly.
+**Concurrency:** the agentic loop (httpx calls to Ollama, sentence-transformer encoding, cross-encoder re-ranking) was running synchronously inside an async FastAPI handler, blocking the event loop for the full query duration (~30s worst case). Wrapped in `asyncio.to_thread` so concurrent requests are handled correctly.
 
-**Rate limiting** — `slowapi` was wired up at the app level (limiter attached, exception handler registered) but the `@limiter.limit()` decorator was never applied to the `/query` route, so the endpoint was completely unthrottled. Applied 20 req/min per IP.
+**Rate limiting:** `slowapi` was wired up at the app level but the `@limiter.limit()` decorator was never applied to the `/query` route, leaving the endpoint unthrottled. Applied 20 req/min per IP.
 
-**Auth hardening** — three issues:
-- The RS256→HS256 fallback when key files were missing was silent; a misconfigured production deploy would silently accept tokens signed with a known string. Changed to raise `RuntimeError` at startup with instructions. Dev mode now requires explicitly setting `JWT_ALGORITHM=HS256`.
-- Client secret comparison used `!=` (vulnerable to timing oracle attacks). Switched to `hmac.compare_digest`.
-- JWT verification errors returned the raw `JWTError` string to the caller (information disclosure). Now logged server-side; callers receive a generic `"Invalid token"`.
+**Auth hardening:** three issues addressed. The RS256-to-HS256 fallback when key files were missing was silent; a misconfigured production deploy would silently accept tokens signed with a known string. Changed to raise `RuntimeError` at startup. Client secret comparison used `!=`, which is vulnerable to timing attacks; switched to `hmac.compare_digest`. JWT verification errors returned the raw exception string to the caller; now logged server-side with a generic `"Invalid token"` response.
 
-**API contract correctness** — `category` and `date_from` fields were accepted in `QueryRequest` but never propagated to the retrieval pipeline. Threaded them through `loop.run` → `execute_tool` so filters actually work.
+**API contract correctness:** `category` and `date_from` fields were accepted in `QueryRequest` but never propagated to the retrieval pipeline. Threaded them through `loop.run` and `execute_tool` so filters are actually applied.
 
-**LLM output trust boundary** — the `get_paper` tool passed the LLM-generated `paper_id` argument directly into a Qdrant scroll query without validation. Added an Arxiv ID pattern check before it reaches the database. Also replaced the raw dict filter syntax with proper Qdrant `Filter`/`FieldCondition` model classes for consistency.
+**LLM output trust boundary:** the `get_paper` tool passed the LLM-generated `paper_id` argument directly into a Qdrant scroll query without validation. Added an Arxiv ID pattern check before it reaches the database. Also replaced the raw dict filter syntax with proper Qdrant `Filter`/`FieldCondition` model classes.
 
-**Error handling** — agent loop exceptions were returned as HTTP 200 with `error: str(e)`, leaking internal details. Exceptions are now logged via structlog with `exc_info=True`; the API returns HTTP 500 with a generic message.
+**Error handling:** agent loop exceptions were returned as HTTP 200 with `error: str(e)`, leaking internal details. Exceptions are now logged via structlog with `exc_info=True`; the API returns HTTP 500 with a generic message.
 
-**Input validation** — `QueryRequest.query` had no length constraints, accepting empty strings or arbitrarily large payloads. Added `min_length=1` / `max_length=1000` via Pydantic `Field` so invalid inputs are rejected at the boundary before reaching the agent loop.
+**Input validation:** `QueryRequest.query` had no length constraints, accepting empty strings or arbitrarily large payloads. Added `min_length=1` and `max_length=1000` via Pydantic `Field`.
 
-**Logging consistency** — the ingestion pipeline (`fetch.py`) used `print()` while every other module used structlog. Replaced all print calls with structured log events so ingestion progress appears in the same JSON log stream as the API.
+**Logging consistency:** the ingestion pipeline (`fetch.py`) used `print()` while every other module used structlog. Replaced all print calls with structured log events.
 
-**Metrics clarity** — the in-memory request counters in `middleware.py` were undocumented; it wasn't obvious they reset on every process restart and are not persisted across deploys. Added a comment to make the scope explicit.
-
-## Running locally vs deployed
-
-| Setting | Local | Deployed |
-|---|---|---|
-| `LLM_BACKEND` | `ollama` | `groq` |
-| `QDRANT_URL` | `http://localhost:6333` | Qdrant Cloud URL |
-| Cost | $0 | $0 (Groq free tier + Qdrant free tier) |
+**Metrics clarity:** the in-memory request counters in `middleware.py` reset on every process restart and are not persisted across deploys. Added a comment to make the scope explicit.
