@@ -49,7 +49,10 @@ async def list_tools() -> list[Tool]:
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "Search query"},
-                    "category": {"type": "string", "description": "Arxiv category e.g. cs.LG, cs.AI"},
+                    "category": {
+                        "type": "string",
+                        "description": "Arxiv category e.g. cs.LG, cs.AI",
+                    },
                     "date_from": {"type": "string", "description": "ISO date e.g. 2025-01-01"},
                 },
                 "required": ["query"],
@@ -86,7 +89,10 @@ async def list_tools() -> list[Tool]:
                 "type": "object",
                 "properties": {
                     "topic": {"type": "string", "description": "Research topic"},
-                    "max_papers": {"type": "integer", "description": "Max papers to include (default 5)"},
+                    "max_papers": {
+                        "type": "integer",
+                        "description": "Max papers to include (default 5)",
+                    },
                 },
                 "required": ["topic"],
             },
@@ -102,9 +108,19 @@ _MAX_CATEGORY_LEN = 20
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     for field in ("query", "topic"):
         if len(arguments.get(field, "")) > _MAX_QUERY_LEN:
-            return [TextContent(type="text", text=f"Error: '{field}' exceeds maximum length of {_MAX_QUERY_LEN} characters.")]
+            return [
+                TextContent(
+                    type="text",
+                    text=f"Error: '{field}' exceeds maximum length of {_MAX_QUERY_LEN} characters.",
+                )
+            ]
     if len(arguments.get("category", "")) > _MAX_CATEGORY_LEN:
-        return [TextContent(type="text", text=f"Error: 'category' exceeds maximum length of {_MAX_CATEGORY_LEN} characters.")]
+        return [
+            TextContent(
+                type="text",
+                text=f"Error: 'category' exceeds maximum length of {_MAX_CATEGORY_LEN} characters.",
+            )
+        ]
 
     qdrant = _get_qdrant()
 
@@ -116,9 +132,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         query = arguments.get("query", "")
         filters = {k: v for k, v in arguments.items() if k != "query" and v is not None}
         llm = get_llm_client()
-        result = await asyncio.to_thread(
-            loop.run, query, qdrant, llm, filters or None
-        )
+        result = await asyncio.to_thread(loop.run, query, qdrant, llm, filters or None)
         text = result["answer"]
         if result["sources"]:
             text += f"\n\nSources: {', '.join(result['sources'])}"

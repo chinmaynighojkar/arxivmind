@@ -34,10 +34,14 @@ async def test_list_tools_have_required_fields():
 async def test_search_papers(mock_qdrant):
     with (
         patch("mcp_server.server._get_qdrant", return_value=mock_qdrant),
-        patch("mcp_server.server.execute_tool", return_value="[2312.00001] Test Paper\nExcerpt...") as mock_exec,
+        patch(
+            "mcp_server.server.execute_tool", return_value="[2312.00001] Test Paper\nExcerpt..."
+        ) as mock_exec,
     ):
         result = await call_tool("search_papers", {"query": "attention mechanism"})
-        mock_exec.assert_called_once_with("search_papers", {"query": "attention mechanism"}, mock_qdrant)
+        mock_exec.assert_called_once_with(
+            "search_papers", {"query": "attention mechanism"}, mock_qdrant
+        )
         assert len(result) == 1
         assert "2312.00001" in result[0].text
 
@@ -57,7 +61,9 @@ async def test_search_papers_with_filters(mock_qdrant):
 async def test_get_paper(mock_qdrant):
     with (
         patch("mcp_server.server._get_qdrant", return_value=mock_qdrant),
-        patch("mcp_server.server.execute_tool", return_value="Title: Test\nAuthors: Alice") as mock_exec,
+        patch(
+            "mcp_server.server.execute_tool", return_value="Title: Test\nAuthors: Alice"
+        ) as mock_exec,
     ):
         result = await call_tool("get_paper", {"paper_id": "2312.00001"})
         mock_exec.assert_called_once_with("get_paper", {"paper_id": "2312.00001"}, mock_qdrant)
@@ -68,10 +74,14 @@ async def test_get_paper(mock_qdrant):
 async def test_summarise_topic(mock_qdrant):
     with (
         patch("mcp_server.server._get_qdrant", return_value=mock_qdrant),
-        patch("mcp_server.server.execute_tool", return_value="Found 3 papers on 'RL':...") as mock_exec,
+        patch(
+            "mcp_server.server.execute_tool", return_value="Found 3 papers on 'RL':..."
+        ) as mock_exec,
     ):
         result = await call_tool("summarise_topic", {"topic": "RL", "max_papers": 3})
-        mock_exec.assert_called_once_with("summarise_topic", {"topic": "RL", "max_papers": 3}, mock_qdrant)
+        mock_exec.assert_called_once_with(
+            "summarise_topic", {"topic": "RL", "max_papers": 3}, mock_qdrant
+        )
         assert "RL" in result[0].text
 
 
