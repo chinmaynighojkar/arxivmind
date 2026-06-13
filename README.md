@@ -1,6 +1,6 @@
 # ArxivMind
 
-A production-grade RAG system that lets you query a database of Arxiv ML research papers through a natural language API. Built with FastAPI, Qdrant, and a local LLM via Ollama.
+A production-grade RAG system that lets you query a database of Arxiv ML research papers through a natural language API — and directly from Claude Code via MCP. Built with FastAPI, Qdrant, sentence-transformers, and an agentic retrieval loop.
 
 ## What it does
 
@@ -26,11 +26,54 @@ Client
               ├── Tool router (search, fetch, summarise)
               └── LLM synthesis (Ollama local | Groq deployed)
 
+Claude Code
+  └── MCP Tool Server (stdio)
+        ├── search_papers
+        ├── ask_question  ←── full agentic loop
+        ├── get_paper
+        └── summarise_topic
+
 Ingestion pipeline (one-shot):
   Arxiv API -> PyMuPDF -> Section-aware chunker -> sentence-transformers -> Qdrant
 ```
 
 The LLM backend is configured via `LLM_BACKEND`: set to `ollama` for local development, `groq` for production. The agent loop is identical for both.
+
+## MCP Tool Server
+
+ArxivMind exposes its RAG capabilities as MCP tools so Claude Code can query the paper index directly — no HTTP calls, no token management.
+
+### Tools
+
+| Tool | Description |
+|---|---|
+| `search_papers` | Semantic search over ingested papers. Returns top matching excerpts. |
+| `ask_question` | Full agentic RAG loop: retrieves papers then synthesises a cited answer. |
+| `get_paper` | Fetch title, authors, date, category, and abstract by Arxiv ID. |
+| `summarise_topic` | Retrieve and summarise multiple papers on a research topic. |
+
+### Setup
+
+```bash
+pip install mcp
+```
+
+Add to `~/.claude/settings.json`:
+
+```json
+"mcpServers": {
+  "arxivmind": {
+    "command": "python",
+    "args": ["/path/to/arxivmind/mcp_server/server.py"],
+    "env": {
+      "QDRANT_URL": "http://localhost:6333",
+      "LLM_BACKEND": "groq"
+    }
+  }
+}
+```
+
+Claude Code will then have the four tools available in any session where Qdrant is running.
 
 ## Evaluation results
 
@@ -56,6 +99,8 @@ Evaluated on 10 questions from a hand-crafted golden set:
 | Re-ranking | cross-encoder/ms-marco-MiniLM-L-6-v2 |
 | LLM (local) | qwen2.5:7b via Ollama |
 | LLM (deployed) | llama-3.1-8b via Groq |
+| MCP server | mcp (stdio transport) |
+| Evaluation | RAGAS |
 | Logging | structlog (JSON) |
 | Rate limiting | slowapi |
 
@@ -78,6 +123,9 @@ docker compose up -d qdrant
 # Ingest papers (abstracts only, ~2 min)
 python scripts/ingest.py --limit 400 --skip-download
 
+# Set required env vars
+cp .env.example .env   # then fill in OAUTH_CLIENT_SECRET and other values
+
 # Start the API
 uvicorn api.main:app --reload
 ```
@@ -87,7 +135,7 @@ uvicorn api.main:app --reload
 ```bash
 # Get a token
 curl -X POST http://localhost:8000/token \
-  -d "username=arxivmind-client&password=change-me"
+  -d "username=arxivmind-client&password=<your-OAUTH_CLIENT_SECRET>"
 
 # Query
 curl -X POST http://localhost:8000/query \
@@ -114,7 +162,8 @@ arxivmind/
 ├── retrieval/      # Dense search, cross-encoder re-ranking
 ├── agent/          # LLM abstraction, tool definitions, agentic loop
 ├── api/            # FastAPI routes, auth, middleware
-├── eval/           # Golden set, evaluation script, scores
+├── mcp_server/     # MCP stdio tool server (Claude Code integration)
+├── eval/           # Golden set, RAGAS evaluation script, scores
 └── scripts/        # Ingestion runner, demo queries
 ```
 
@@ -130,15 +179,15 @@ A post-build review of the codebase identified and resolved several correctness 
 
 **Rate limiting:** `slowapi` was wired up at the app level but the `@limiter.limit()` decorator was never applied to the `/query` route, leaving the endpoint unthrottled. Applied 20 req/min per IP.
 
-**Auth hardening:** three issues addressed. The RS256-to-HS256 fallback when key files were missing was silent; a misconfigured production deploy would silently accept tokens signed with a known string. Changed to raise `RuntimeError` at startup. Client secret comparison used `!=`, which is vulnerable to timing attacks; switched to `hmac.compare_digest`. JWT verification errors returned the raw exception string to the caller; now logged server-side with a generic `"Invalid token"` response.
+**Auth hardening:** three issues addressed. The RS256-to-HS256 fallback when key files were missing was silent; a misconfigured production deploy would silently accept tokens signed with a known string. Changed to raise `RuntimeError` at startup. Client secret comparison used `!=`, which is vulnerable to timing attacks; switched to `hmac.compare_digest`. JWT verification errors returned the raw exception string to the caller; now logged server-side with a generic `"Invalid token"` response. `OAUTH_CLIENT_SECRET` now raises `RuntimeError` on startup if unset rather than falling back to a known-bad default.
 
 **API contract correctness:** `category` and `date_from` fields were accepted in `QueryRequest` but never propagated to the retrieval pipeline. Threaded them through `loop.run` and `execute_tool` so filters are actually applied.
 
 **LLM output trust boundary:** the `get_paper` tool passed the LLM-generated `paper_id` argument directly into a Qdrant scroll query without validation. Added an Arxiv ID pattern check before it reaches the database. Also replaced the raw dict filter syntax with proper Qdrant `Filter`/`FieldCondition` model classes.
 
-**Error handling:** agent loop exceptions were returned as HTTP 200 with `error: str(e)`, leaking internal details. Exceptions are now logged via structlog with `exc_info=True`; the API returns HTTP 500 with a generic message.
+**Input validation:** `QueryRequest.query` had no length constraints. Added `min_length=1` and `max_length=1000` via Pydantic `Field`. MCP tool inputs (`query`, `topic`, `category`) are bounded at the handler level before reaching the embedding pipeline.
 
-**Input validation:** `QueryRequest.query` had no length constraints, accepting empty strings or arbitrarily large payloads. Added `min_length=1` and `max_length=1000` via Pydantic `Field`.
+**Error handling:** agent loop exceptions were returned as HTTP 200 with `error: str(e)`, leaking internal details. Exceptions are now logged via structlog with `exc_info=True`; the API returns HTTP 500 with a generic message.
 
 **Logging consistency:** the ingestion pipeline (`fetch.py`) used `print()` while every other module used structlog. Replaced all print calls with structured log events.
 
