@@ -1,6 +1,6 @@
 # ArxivMind
 
-A production-grade RAG system that lets you query a database of Arxiv ML research papers through a natural language API — and directly from Claude Code via MCP. Built with FastAPI, Qdrant, sentence-transformers, and an agentic retrieval loop.
+A production-grade RAG system that lets you query a database of Arxiv ML research papers through a natural language API and directly from Claude Code via MCP. Built with FastAPI, Qdrant, sentence-transformers, and an agentic retrieval loop.
 
 ## What it does
 
@@ -41,7 +41,7 @@ The LLM backend is configured via `LLM_BACKEND`: set to `ollama` for local devel
 
 ## MCP Tool Server
 
-ArxivMind exposes its RAG capabilities as MCP tools so Claude Code can query the paper index directly — no HTTP calls, no token management.
+ArxivMind exposes its RAG capabilities as MCP tools so Claude Code can query the paper index directly, with no HTTP calls or token management.
 
 ### Tools
 
@@ -58,22 +58,24 @@ ArxivMind exposes its RAG capabilities as MCP tools so Claude Code can query the
 pip install mcp
 ```
 
-Add to `~/.claude/settings.json`:
+A `.mcp.json` file is included at the project root. Claude Code picks it up automatically when you open the project:
 
 ```json
-"mcpServers": {
-  "arxivmind": {
-    "command": "python",
-    "args": ["/path/to/arxivmind/mcp_server/server.py"],
-    "env": {
-      "QDRANT_URL": "http://localhost:6333",
-      "LLM_BACKEND": "groq"
+{
+  "mcpServers": {
+    "arxivmind": {
+      "command": "python",
+      "args": ["mcp_server/server.py"],
+      "env": {
+        "QDRANT_URL": "http://localhost:6333",
+        "LLM_BACKEND": "groq"
+      }
     }
   }
 }
 ```
 
-Claude Code will then have the four tools available in any session where Qdrant is running.
+The four tools are available in any Claude Code session where Qdrant is running.
 
 ## Evaluation results
 
