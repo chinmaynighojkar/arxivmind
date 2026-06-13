@@ -19,12 +19,9 @@ EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 CLIENT_ID = os.getenv("OAUTH_CLIENT_ID", "arxivmind-client")
 _raw_secret = os.getenv("OAUTH_CLIENT_SECRET", "")
 if not _raw_secret:
-    import warnings
-
-    warnings.warn(
-        "OAUTH_CLIENT_SECRET is not set — using insecure default. Set it in .env.", stacklevel=1
+    raise RuntimeError(
+        "OAUTH_CLIENT_SECRET is not set. Set it in .env before starting the server."
     )
-    _raw_secret = "change-me"
 CLIENT_SECRET = _raw_secret
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

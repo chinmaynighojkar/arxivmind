@@ -94,8 +94,18 @@ async def list_tools() -> list[Tool]:
     ]
 
 
+_MAX_QUERY_LEN = 1000
+_MAX_CATEGORY_LEN = 20
+
+
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+    for field in ("query", "topic"):
+        if len(arguments.get(field, "")) > _MAX_QUERY_LEN:
+            return [TextContent(type="text", text=f"Error: '{field}' exceeds maximum length of {_MAX_QUERY_LEN} characters.")]
+    if len(arguments.get("category", "")) > _MAX_CATEGORY_LEN:
+        return [TextContent(type="text", text=f"Error: 'category' exceeds maximum length of {_MAX_CATEGORY_LEN} characters.")]
+
     qdrant = _get_qdrant()
 
     if name == "search_papers":
