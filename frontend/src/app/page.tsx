@@ -201,7 +201,7 @@ export default function Home() {
       <div className="mb-10">
         <h1 className="text-3xl font-bold tracking-tight text-white">ArxivMind</h1>
         <p className="mt-1 text-gray-400 text-sm">
-          RAG over Arxiv ML papers — ask questions, search, ingest, or summarise topics
+          RAG over Arxiv ML papers. Ask questions, search, ingest, or summarise topics.
         </p>
       </div>
 
@@ -367,7 +367,7 @@ export default function Home() {
           )}
 
           {!loading && searchResults.length === 0 && searchQuery && (
-            <p className="mt-8 text-sm text-gray-600">No results yet — hit Search.</p>
+            <p className="mt-8 text-sm text-gray-600">No results yet. Hit Search to get started.</p>
           )}
         </div>
       )}
@@ -400,7 +400,7 @@ export default function Home() {
 
           {loading && (
             <p className="mt-6 text-sm text-gray-500">
-              Fetching PDF and embedding — this can take 30–60s…
+              Fetching PDF and embedding chunks. This can take up to a minute.
             </p>
           )}
 

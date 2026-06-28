@@ -1,10 +1,10 @@
 # ArxivMind
 
-A RAG system that lets you query a database of Arxiv ML research papers through a web UI, REST API, or directly from Claude Code via MCP. Built with FastAPI, Next.js, Qdrant, sentence-transformers, and an agentic retrieval loop.
+Ask questions about ML research and get cited answers grounded in real papers. ArxivMind indexes a rolling corpus of Arxiv papers and lets you query it from a browser, a REST API, or directly from Claude Code via MCP. Built with FastAPI, Next.js, Qdrant, sentence-transformers, and an agentic retrieval loop.
 
 ## What it does
 
-Ask questions about ML research and get grounded, cited answers pulled from real papers:
+Type a question and get a cited answer drawn from indexed papers:
 
 ```
 Q: What are the latest approaches to reducing hallucination in LLMs?
@@ -91,7 +91,7 @@ Evaluated with RAGAS on a hand-crafted golden set (10 questions, 400-paper corpu
 | Citation Rate | 1.000 |
 | Answer Completeness | 1.000 |
 
-*Model: qwen2.5:7b local. Answer similarity uses cosine distance scored by all-MiniLM-L6-v2 — the same model used for indexing, so it is not independent. The golden set is small and hand-authored; treat these numbers as a functional smoke test rather than a rigorous benchmark. Eval script and golden set are in `eval/`.*
+*Model: qwen2.5:7b local. Answer similarity is scored by all-MiniLM-L6-v2, the same model used for indexing, so it is not an independent judge. The golden set is small and hand-authored; treat these as a functional smoke test rather than a rigorous benchmark. Eval script and golden set live in `eval/`.*
 
 ## Tech stack
 
@@ -151,7 +151,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — five tabs: Ask, Search Papers, Ingest Paper, Summarise Topic, and Papers (full index listing with filter).
+Open [http://localhost:3000](http://localhost:3000). Five tabs: Ask, Search Papers, Ingest Paper, Summarise Topic, and Papers (full index with live filter and a refresh button to pull the latest papers).
 
 ## Usage
 
