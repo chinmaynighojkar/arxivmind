@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const isDev = process.env.NODE_ENV === "development";
+
 const nextConfig = {
   async headers() {
     return [
@@ -13,7 +15,10 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "connect-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              // Next.js HMR (React Fast Refresh) requires unsafe-eval in dev
+              isDev
+                ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+                : "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data:",
             ].join("; "),
