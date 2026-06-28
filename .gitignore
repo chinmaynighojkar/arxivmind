@@ -1,4 +1,6 @@
 .env
+.env.local
+.env.*.local
 keys/
 data/pdfs/
 __pycache__/
@@ -10,3 +12,7 @@ dist/
 .venv/
 venv/
 REVISION.md
+uvicorn.log
+uvicorn.err
+frontend/.next/
+frontend/node_modules/

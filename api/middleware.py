@@ -9,7 +9,17 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 logger = structlog.get_logger()
-limiter = Limiter(key_func=get_remote_address)
+
+
+def _client_ip(request: Request) -> str:
+    """Return the real client IP, trusting a single upstream proxy layer."""
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=_client_ip)
 
 # In-memory counters — reset on every process restart, not persisted across deploys.
 _request_count = 0
