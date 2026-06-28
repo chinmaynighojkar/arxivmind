@@ -1,6 +1,6 @@
 # ArxivMind
 
-A production-grade RAG system that lets you query a database of Arxiv ML research papers through a natural language API and directly from Claude Code via MCP. Built with FastAPI, Qdrant, sentence-transformers, and an agentic retrieval loop.
+A production-grade RAG system that lets you query a database of Arxiv ML research papers through a web UI, REST API, or directly from Claude Code via MCP. Built with FastAPI, Next.js, Qdrant, sentence-transformers, and an agentic retrieval loop.
 
 ## What it does
 
@@ -19,12 +19,14 @@ Sources: 2606.03628v1, 2606.03731v1, 2606.03022v1
 ## Architecture
 
 ```
-Client
-  └── FastAPI (OAuth 2.0, rate limiting, structured logging)
-        └── Agentic Loop
-              ├── Initial retrieval (always runs before LLM)
-              ├── Tool router (search, fetch, summarise)
-              └── LLM synthesis (Ollama local | Groq deployed)
+Browser
+  └── Next.js 15 frontend (localhost:3000)
+        └── Server-side API proxy routes (/api/*)
+              └── FastAPI (OAuth 2.0, rate limiting, structured logging)
+                    └── Agentic Loop
+                          ├── Initial retrieval (always runs before LLM)
+                          ├── Tool router (search, fetch, summarise)
+                          └── LLM synthesis (Ollama local | Groq deployed)
 
 Claude Code
   └── MCP Tool Server (stdio)
@@ -33,7 +35,7 @@ Claude Code
         ├── get_paper
         └── summarise_topic
 
-Ingestion pipeline (one-shot):
+Ingestion pipeline (one-shot or per-paper via UI):
   Arxiv API -> PyMuPDF -> Section-aware chunker -> sentence-transformers -> Qdrant
 ```
 
@@ -94,6 +96,7 @@ Evaluated on 10 questions from a hand-crafted golden set:
 
 | Layer | Choice |
 |---|---|
+| Frontend | Next.js 15 (App Router), Tailwind CSS |
 | API | FastAPI + uvicorn |
 | Auth | OAuth 2.0 client credentials, RS256 JWT |
 | Vector DB | Qdrant (Docker local, Qdrant Cloud deployed) |
@@ -108,13 +111,13 @@ Evaluated on 10 questions from a hand-crafted golden set:
 
 ## Getting started
 
-**Prerequisites:** Docker Desktop, Python 3.11+, Ollama
+**Prerequisites:** Docker Desktop, Python 3.11+, Ollama, Node.js 18+
 
 ```bash
 # Clone and install
 git clone https://github.com/chinmaynighojkar/arxivmind
 cd arxivmind
-pip install -r requirements.txt   # or: uv pip install -e .
+pip install -e .
 
 # Pull the model
 ollama pull qwen2.5:7b
@@ -126,11 +129,26 @@ docker compose up -d qdrant
 python scripts/ingest.py --limit 400 --skip-download
 
 # Set required env vars
-cp .env.example .env   # then fill in OAUTH_CLIENT_SECRET and other values
+cp .env.example .env   # fill in OAUTH_CLIENT_SECRET and other values
+
+# Generate RS256 keys
+openssl genrsa -out keys/private.pem 2048
+openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 # Start the API
 uvicorn api.main:app --reload
 ```
+
+### Frontend (optional)
+
+```bash
+cd frontend
+cp .env.local.example .env.local   # fill in ARXIVMIND_CLIENT_SECRET
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) — five tabs: Ask, Search Papers, Ingest Paper, Summarise Topic, and Papers (full index listing with filter).
 
 ## Usage
 
@@ -148,18 +166,23 @@ curl -X POST http://localhost:8000/query \
 
 ## Endpoints
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/token` | POST | OAuth 2.0 token (client credentials) |
-| `/query` | POST | RAG query with agentic retrieval |
-| `/health` | GET | Liveness check |
-| `/ready` | GET | Readiness check (Qdrant + model) |
-| `/metrics` | GET | Request count, latency, error rate |
+| Endpoint | Method | Scope | Description |
+|---|---|---|---|
+| `/token` | POST | — | OAuth 2.0 token (client credentials) |
+| `/query` | POST | `read:query` | RAG query with agentic retrieval |
+| `/search` | POST | `read:query` | Semantic paper search, returns structured results |
+| `/summarise` | POST | `read:query` | Summarise papers on a topic |
+| `/papers` | GET | `read:query` | List all indexed papers (sorted by date) |
+| `/ingest` | POST | `write:ingest` | Fetch, parse, and index a paper by Arxiv ID |
+| `/health` | GET | — | Liveness check |
+| `/ready` | GET | — | Readiness check (Qdrant reachable) |
+| `/metrics` | GET | — | Request count, latency, error rate |
 
 ## Project structure
 
 ```
 arxivmind/
+├── frontend/       # Next.js 15 UI (5 tabs, server-side API proxy)
 ├── ingestion/      # Arxiv fetch, PDF parse, chunk, embed
 ├── retrieval/      # Dense search, cross-encoder re-ranking
 ├── agent/          # LLM abstraction, tool definitions, agentic loop
