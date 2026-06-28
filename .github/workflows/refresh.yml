@@ -1,0 +1,33 @@
+name: Monthly Paper Refresh
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"  # 6 AM UTC on the 1st of every month
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv pip install --system -e "."
+
+      - name: Refresh papers
+        run: python scripts/refresh_papers.py
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          RETENTION_MONTHS: "4"

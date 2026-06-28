@@ -177,6 +177,7 @@ curl -X POST http://localhost:8000/query \
 | `/summarise` | POST | `read:query` | Summarise papers on a topic |
 | `/papers` | GET | `read:query` | List all indexed papers (sorted by date) |
 | `/ingest` | POST | `write:ingest` | Fetch, parse, and index a paper by Arxiv ID |
+| `/refresh` | POST | `write:ingest` | Pull latest Arxiv ML papers, skip already-indexed ones |
 | `/health` | GET | — | Liveness check |
 | `/ready` | GET | — | Readiness check (Qdrant reachable) |
 | `/metrics` | GET | — | Request count, latency, error rate |

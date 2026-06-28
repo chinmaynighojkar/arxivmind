@@ -14,7 +14,7 @@ from api.deps import get_qdrant
 from api.middleware import limiter
 from ingestion.chunk import chunk_sections
 from ingestion.embed import ensure_collection, upsert_chunks
-from ingestion.fetch import download_pdf
+from ingestion.fetch import download_pdf, fetch_papers
 from ingestion.parse import parse_pdf
 from retrieval.rerank import rerank
 from retrieval.search import hybrid_search
@@ -216,6 +216,66 @@ async def list_papers(
 ):
     papers = await asyncio.to_thread(_list_papers_sync, qdrant)
     return PapersResponse(papers=papers, total=len(papers))
+
+
+class RefreshResponse(BaseModel):
+    ingested: int
+    skipped: int
+
+
+def _get_existing_paper_ids(qdrant) -> set[str]:
+    seen: set[str] = set()
+    offset = None
+    collection = os.getenv("QDRANT_COLLECTION", "arxivmind")
+    while True:
+        results, next_offset = qdrant.scroll(
+            collection_name=collection,
+            limit=256,
+            offset=offset,
+            with_payload=["paper_id"],
+            with_vectors=False,
+        )
+        for point in results:
+            pid = point.payload.get("paper_id", "")
+            if pid:
+                seen.add(pid)
+        if next_offset is None:
+            break
+        offset = next_offset
+    return seen
+
+
+def _refresh_papers_sync(qdrant) -> dict:
+    existing_ids = _get_existing_paper_ids(qdrant)
+    recent = fetch_papers(max_results=200)
+    new_papers = [
+        p for p in recent
+        if p["paper_id"] not in existing_ids
+        and p["paper_id"].split("v")[0] not in existing_ids
+    ]
+    skipped = len(recent) - len(new_papers)
+    ensure_collection(qdrant)
+    ingested = 0
+    for paper in new_papers:
+        sections = [{"section": "abstract", "text": paper["abstract"], "page_start": 0}]
+        chunks = chunk_sections(paper, sections)
+        upsert_chunks(qdrant, chunks)
+        ingested += 1
+    return {"ingested": ingested, "skipped": skipped}
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+@limiter.limit("2/hour")
+async def refresh_papers(
+    request: Request,
+    _client: dict = Depends(require_scope("write:ingest")),
+    qdrant=Depends(get_qdrant),
+):
+    try:
+        result = await asyncio.to_thread(_refresh_papers_sync, qdrant)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Refresh failed. Check server logs.") from e
+    return RefreshResponse(**result)
 
 
 @router.post("/summarise", response_model=SummariseResponse)

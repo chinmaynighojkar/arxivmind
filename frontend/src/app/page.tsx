@@ -67,6 +67,8 @@ export default function Home() {
   const [papersTotal, setPapersTotal] = useState<number | null>(null);
   const [papersLoading, setPapersLoading] = useState(false);
   const [papersFilter, setPapersFilter] = useState("");
+  const [refreshLoading, setRefreshLoading] = useState(false);
+  const [refreshResult, setRefreshResult] = useState<{ ingested: number; skipped: number } | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,6 +147,25 @@ export default function Home() {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleRefresh() {
+    setRefreshLoading(true);
+    setRefreshResult(null);
+    setError(null);
+    try {
+      const data = await post<{ ingested: number; skipped: number }>("/refresh", {});
+      setRefreshResult(data);
+      setPapersLoading(true);
+      const d = await fetch("/api/papers").then((r) => r.json());
+      setPapers(d.papers ?? []);
+      setPapersTotal(d.total ?? 0);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setRefreshLoading(false);
+      setPapersLoading(false);
     }
   }
 
@@ -442,6 +463,21 @@ export default function Home() {
       {/* --- Papers Tab --- */}
       {tab === "papers" && (
         <div>
+          <div className="flex items-center justify-between mb-5">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshLoading || papersLoading}
+              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-gray-200 transition-colors"
+            >
+              {refreshLoading ? "Fetching latest papers…" : "Fetch latest papers"}
+            </button>
+            {refreshResult && !refreshLoading && (
+              <p className="text-xs text-gray-500">
+                {refreshResult.ingested} new · {refreshResult.skipped} already indexed
+              </p>
+            )}
+          </div>
+
           {papersLoading && (
             <p className="text-sm text-gray-500">Loading papers from index…</p>
           )}
