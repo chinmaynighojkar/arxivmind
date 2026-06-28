@@ -1,6 +1,6 @@
 # ArxivMind
 
-A production-grade RAG system that lets you query a database of Arxiv ML research papers through a web UI, REST API, or directly from Claude Code via MCP. Built with FastAPI, Next.js, Qdrant, sentence-transformers, and an agentic retrieval loop.
+A RAG system that lets you query a database of Arxiv ML research papers through a web UI, REST API, or directly from Claude Code via MCP. Built with FastAPI, Next.js, Qdrant, sentence-transformers, and an agentic retrieval loop.
 
 ## What it does
 
@@ -22,7 +22,7 @@ Sources: 2606.03628v1, 2606.03731v1, 2606.03022v1
 Browser
   └── Next.js 15 frontend (localhost:3000)
         └── Server-side API proxy routes (/api/*)
-              └── FastAPI (OAuth 2.0, rate limiting, structured logging)
+              └── FastAPI (RS256 JWT auth, rate limiting, structured logging)
                     └── Agentic Loop
                           ├── Initial retrieval (always runs before LLM)
                           ├── Tool router (search, fetch, summarise)
@@ -36,7 +36,8 @@ Claude Code
         └── summarise_topic
 
 Ingestion pipeline (one-shot or per-paper via UI):
-  Arxiv API -> PyMuPDF -> Section-aware chunker -> sentence-transformers -> Qdrant
+  Arxiv API -> sentence-transformers -> Qdrant          (--skip-download, abstracts only)
+  Arxiv API -> PyMuPDF -> Section-aware chunker -> sentence-transformers -> Qdrant  (full PDF)
 ```
 
 The LLM backend is configured via `LLM_BACKEND`: set to `ollama` for local development, `groq` for production. The agent loop is identical for both.
@@ -81,7 +82,7 @@ The four tools are available in any Claude Code session where Qdrant is running.
 
 ## Evaluation results
 
-Evaluated on 10 questions from a hand-crafted golden set:
+Evaluated with RAGAS on a hand-crafted golden set (10 questions, 400-paper corpus):
 
 | Metric | Score |
 |---|---|
@@ -90,7 +91,7 @@ Evaluated on 10 questions from a hand-crafted golden set:
 | Citation Rate | 1.000 |
 | Answer Completeness | 1.000 |
 
-*Answer similarity uses cosine distance between generated and reference answers (sentence-transformers/all-MiniLM-L6-v2). Model: qwen2.5:7b local. Corpus: 400 Arxiv papers.*
+*Model: qwen2.5:7b local. Answer similarity uses cosine distance scored by all-MiniLM-L6-v2 — the same model used for indexing, so it is not independent. The golden set is small and hand-authored; treat these numbers as a functional smoke test rather than a rigorous benchmark. Eval script and golden set are in `eval/`.*
 
 ## Tech stack
 
@@ -98,7 +99,7 @@ Evaluated on 10 questions from a hand-crafted golden set:
 |---|---|
 | Frontend | Next.js 15 (App Router), Tailwind CSS |
 | API | FastAPI + uvicorn |
-| Auth | OAuth 2.0 client credentials, RS256 JWT |
+| Auth | RS256 JWT, token endpoint (client credentials form) |
 | Vector DB | Qdrant (Docker local, Qdrant Cloud deployed) |
 | Embeddings | sentence-transformers/all-MiniLM-L6-v2 |
 | Re-ranking | cross-encoder/ms-marco-MiniLM-L-6-v2 |
@@ -119,21 +120,23 @@ git clone https://github.com/chinmaynighojkar/arxivmind
 cd arxivmind
 pip install -e .
 
-# Pull the model
+# Configure env vars (do this before anything else)
+cp .env.example .env   # fill in OAUTH_CLIENT_SECRET and QDRANT_URL
+
+# Generate RS256 keys
+openssl genrsa -out keys/private.pem 2048
+openssl rsa -in keys/private.pem -pubout -out keys/public.pem
+
+# Pull the LLM model
 ollama pull qwen2.5:7b
 
 # Start Qdrant
 docker compose up -d qdrant
 
-# Ingest papers (abstracts only, ~2 min)
+# Ingest papers — abstracts only, fast (~2 min)
 python scripts/ingest.py --limit 400 --skip-download
-
-# Set required env vars
-cp .env.example .env   # fill in OAUTH_CLIENT_SECRET and other values
-
-# Generate RS256 keys
-openssl genrsa -out keys/private.pem 2048
-openssl rsa -in keys/private.pem -pubout -out keys/public.pem
+# Or full PDF pipeline, slower (~30 min for 100 papers)
+# python scripts/ingest.py --limit 100
 
 # Start the API
 uvicorn api.main:app --reload
@@ -153,9 +156,9 @@ Open [http://localhost:3000](http://localhost:3000) — five tabs: Ask, Search P
 ## Usage
 
 ```bash
-# Get a token
+# Get a token (username = client ID, password = OAUTH_CLIENT_SECRET from .env)
 curl -X POST http://localhost:8000/token \
-  -d "username=arxivmind-client&password=<your-OAUTH_CLIENT_SECRET>"
+  -d "username=arxivmind-client&password=<your-OAUTH_CLIENT_SECRET>&scope=read:query"
 
 # Query
 curl -X POST http://localhost:8000/query \
@@ -168,7 +171,7 @@ curl -X POST http://localhost:8000/query \
 
 | Endpoint | Method | Scope | Description |
 |---|---|---|---|
-| `/token` | POST | — | OAuth 2.0 token (client credentials) |
+| `/token` | POST | — | Issue a signed JWT (pass client ID + secret as username/password) |
 | `/query` | POST | `read:query` | RAG query with agentic retrieval |
 | `/search` | POST | `read:query` | Semantic paper search, returns structured results |
 | `/summarise` | POST | `read:query` | Summarise papers on a topic |
@@ -196,24 +199,6 @@ arxivmind/
 
 Five attack categories tested (prompt injection, role confusion, data exfiltration, cost amplification, context poisoning) with documented mitigations. See [SECURITY.md](SECURITY.md).
 
-## Security & reliability hardening
+## Security hardening
 
-A post-build review of the codebase identified and resolved several correctness and security issues across the API, agent layer, and ingestion pipeline.
-
-**Concurrency:** the agentic loop (httpx calls to Ollama, sentence-transformer encoding, cross-encoder re-ranking) was running synchronously inside an async FastAPI handler, blocking the event loop for the full query duration (~30s worst case). Wrapped in `asyncio.to_thread` so concurrent requests are handled correctly.
-
-**Rate limiting:** `slowapi` was wired up at the app level but the `@limiter.limit()` decorator was never applied to the `/query` route, leaving the endpoint unthrottled. Applied 20 req/min per IP.
-
-**Auth hardening:** three issues addressed. The RS256-to-HS256 fallback when key files were missing was silent; a misconfigured production deploy would silently accept tokens signed with a known string. Changed to raise `RuntimeError` at startup. Client secret comparison used `!=`, which is vulnerable to timing attacks; switched to `hmac.compare_digest`. JWT verification errors returned the raw exception string to the caller; now logged server-side with a generic `"Invalid token"` response. `OAUTH_CLIENT_SECRET` now raises `RuntimeError` on startup if unset rather than falling back to a known-bad default.
-
-**API contract correctness:** `category` and `date_from` fields were accepted in `QueryRequest` but never propagated to the retrieval pipeline. Threaded them through `loop.run` and `execute_tool` so filters are actually applied.
-
-**LLM output trust boundary:** the `get_paper` tool passed the LLM-generated `paper_id` argument directly into a Qdrant scroll query without validation. Added an Arxiv ID pattern check before it reaches the database. Also replaced the raw dict filter syntax with proper Qdrant `Filter`/`FieldCondition` model classes.
-
-**Input validation:** `QueryRequest.query` had no length constraints. Added `min_length=1` and `max_length=1000` via Pydantic `Field`. MCP tool inputs (`query`, `topic`, `category`) are bounded at the handler level before reaching the embedding pipeline.
-
-**Error handling:** agent loop exceptions were returned as HTTP 200 with `error: str(e)`, leaking internal details. Exceptions are now logged via structlog with `exc_info=True`; the API returns HTTP 500 with a generic message.
-
-**Logging consistency:** the ingestion pipeline (`fetch.py`) used `print()` while every other module used structlog. Replaced all print calls with structured log events.
-
-**Metrics clarity:** the in-memory request counters in `middleware.py` reset on every process restart and are not persisted across deploys. Added a comment to make the scope explicit.
+Rate limiting on all endpoints, timing-safe secret comparison (`hmac.compare_digest`), startup `RuntimeError` if RS256 keys or `OAUTH_CLIENT_SECRET` are missing, LLM-controlled inputs validated before reaching the database, and structured error responses that never leak internal details. See [SECURITY.md](SECURITY.md) for the full list.
