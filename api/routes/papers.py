@@ -249,9 +249,9 @@ def _refresh_papers_sync(qdrant) -> dict:
     existing_ids = _get_existing_paper_ids(qdrant)
     recent = fetch_papers(max_results=200)
     new_papers = [
-        p for p in recent
-        if p["paper_id"] not in existing_ids
-        and p["paper_id"].split("v")[0] not in existing_ids
+        p
+        for p in recent
+        if p["paper_id"] not in existing_ids and p["paper_id"].split("v")[0] not in existing_ids
     ]
     skipped = len(recent) - len(new_papers)
     ensure_collection(qdrant)

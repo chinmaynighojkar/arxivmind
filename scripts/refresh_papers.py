@@ -44,14 +44,10 @@ def _scroll_all(qdrant, fields: list[str]) -> list[dict]:
 
 
 def delete_old_papers(qdrant) -> int:
-    cutoff = (
-        datetime.date.today() - datetime.timedelta(days=_RETENTION_MONTHS * 30)
-    ).isoformat()
+    cutoff = (datetime.date.today() - datetime.timedelta(days=_RETENTION_MONTHS * 30)).isoformat()
     payloads = _scroll_all(qdrant, ["paper_id", "date"])
     old_ids = {
-        p["paper_id"]
-        for p in payloads
-        if p.get("date", "")[:10] < cutoff and p.get("paper_id")
+        p["paper_id"] for p in payloads if p.get("date", "")[:10] < cutoff and p.get("paper_id")
     }
     if not old_ids:
         logger.info("no_old_papers", cutoff=cutoff)
@@ -67,15 +63,12 @@ def delete_old_papers(qdrant) -> int:
 
 
 def ingest_recent_papers(qdrant) -> int:
-    existing_ids = {
-        p["paper_id"] for p in _scroll_all(qdrant, ["paper_id"]) if p.get("paper_id")
-    }
+    existing_ids = {p["paper_id"] for p in _scroll_all(qdrant, ["paper_id"]) if p.get("paper_id")}
     recent = fetch_papers(max_results=200)
     new_papers = [
         p
         for p in recent
-        if p["paper_id"] not in existing_ids
-        and p["paper_id"].split("v")[0] not in existing_ids
+        if p["paper_id"] not in existing_ids and p["paper_id"].split("v")[0] not in existing_ids
     ]
     logger.info("papers_to_ingest", new=len(new_papers), skipped=len(recent) - len(new_papers))
     ensure_collection(qdrant)
