@@ -145,9 +145,9 @@ async def ingest(
     try:
         result = await asyncio.to_thread(_ingest_paper_sync, paper_id, qdrant)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Ingestion failed. Check server logs.")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Ingestion failed. Check server logs.") from e
 
     return IngestResponse(
         paper_id=paper_id,
